@@ -7,6 +7,7 @@ from typing import List
 from datetime import datetime, timedelta
 import random
 from fastapi import BackgroundTasks
+import numpy as np
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,16 +31,31 @@ class WeatherOut(WeatherIn):
     timestamp: datetime
 
 def generate_random_weather_data(db: Session, count: int = 1000):
-    """Генерация случайных данных о погоде"""
+    """Генерация случайных данных о погоде с учетом широты"""
     stations = ["Station Alpha", "Station Beta", "Station Gamma", "Station Delta", "Station Epsilon"]
     
     for _ in range(count):
+        latitude = round(random.uniform(-90, 90), 6)
+        
+        # Определяем базовую температуру в зависимости от широты
+        if abs(latitude) < 23.5:  # Тропики
+            base_temp = random.uniform(30, 50)
+        elif abs(latitude) < 45:   # Умеренный пояс
+            base_temp = random.uniform(10, 25)
+        elif abs(latitude) < 66.5: # Субполярный пояс
+            base_temp = random.uniform(-20, 10)
+        else:                      # Полярный пояс
+            base_temp = random.uniform(-20, -50)
+        
+        # Добавляем случайные колебания
+        temperature = round(base_temp + random.uniform(-5, 5), 2)
+        
         weather_data = WeatherData(
             station_name=random.choice(stations),
-            temperature=round(random.uniform(-20, 40), 2),  # Температура от -20 до 40
-            latitude=round(random.uniform(-90, 90), 6),    # Широта
-            longitude=round(random.uniform(-180, 180), 6), # Долгота
-            timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 365))  # Случайная дата в последний год
+            temperature=temperature,
+            latitude=latitude,
+            longitude=round(random.uniform(-180, 180), 6),
+            timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 365))
         )
         db.add(weather_data)
     
@@ -65,3 +81,16 @@ def read_weather(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail="Max limit is 100")
     records = db.query(WeatherData).offset(skip).limit(limit).all()
     return records
+
+@app.get("/api/weather/heatmap")
+def get_heatmap_data(db: Session = Depends(get_db)):
+    """Новый эндпоинт для получения данных тепловой карты"""
+    records = db.query(WeatherData).all()
+    return [
+        {
+            "latitude": record.latitude,
+            "longitude": record.longitude,
+            "temperature": record.temperature
+        }
+        for record in records
+    ]
