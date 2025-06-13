@@ -4,11 +4,12 @@ from database import SessionLocal, engine, Base
 from models import WeatherData
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
+from fastapi import BackgroundTasks
 
 Base.metadata.create_all(bind=engine)
 
-# Добавляем параметр redirect_slashes=False
 app = FastAPI(redirect_slashes=False)
 
 def get_db():
@@ -28,7 +29,28 @@ class WeatherOut(WeatherIn):
     id: int
     timestamp: datetime
 
-# Оставляем роуты без изменений
+def generate_random_weather_data(db: Session, count: int = 1000):
+    """Генерация случайных данных о погоде"""
+    stations = ["Station Alpha", "Station Beta", "Station Gamma", "Station Delta", "Station Epsilon"]
+    
+    for _ in range(count):
+        weather_data = WeatherData(
+            station_name=random.choice(stations),
+            temperature=round(random.uniform(-20, 40), 2),  # Температура от -20 до 40
+            latitude=round(random.uniform(-90, 90), 6),    # Широта
+            longitude=round(random.uniform(-180, 180), 6), # Долгота
+            timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 365))  # Случайная дата в последний год
+        )
+        db.add(weather_data)
+    
+    db.commit()
+
+@app.post("/api/generate-test-data")
+async def generate_test_data(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Эндпоинт для генерации тестовых данных"""
+    background_tasks.add_task(generate_random_weather_data, db)
+    return {"message": "Генерация тестовых данных начата"}
+
 @app.post("/api/weather", response_model=WeatherOut)
 def create_weather(data: WeatherIn, db: Session = Depends(get_db)):
     db_data = WeatherData(**data.dict())
