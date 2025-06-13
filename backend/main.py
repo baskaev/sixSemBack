@@ -7,7 +7,6 @@ from typing import List
 from datetime import datetime, timedelta
 import random
 from fastapi import BackgroundTasks
-import numpy as np
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,31 +30,33 @@ class WeatherOut(WeatherIn):
     timestamp: datetime
 
 def generate_random_weather_data(db: Session, count: int = 1000):
-    """Генерация случайных данных о погоде с учетом широты"""
+    """Генерация данных с четкими температурными зонами"""
     stations = ["Station Alpha", "Station Beta", "Station Gamma", "Station Delta", "Station Epsilon"]
     
     for _ in range(count):
         latitude = round(random.uniform(-90, 90), 6)
         
-        # Определяем базовую температуру в зависимости от широты
+        # Усиленные температурные различия
         if abs(latitude) < 23.5:  # Тропики
-            base_temp = random.uniform(30, 50)
+            base_temp = random.uniform(25, 40)
         elif abs(latitude) < 45:   # Умеренный пояс
-            base_temp = random.uniform(10, 25)
+            base_temp = random.uniform(5, 25)
         elif abs(latitude) < 66.5: # Субполярный пояс
-            base_temp = random.uniform(-20, 10)
+            base_temp = random.uniform(-15, 10)
         else:                      # Полярный пояс
-            base_temp = random.uniform(-20, -50)
+            base_temp = random.uniform(-30, -5)
         
-        # Добавляем случайные колебания
-        temperature = round(base_temp + random.uniform(-5, 5), 2)
+        # Сезонные колебания
+        now = datetime.utcnow()
+        is_summer = (now.month in [6,7,8] and latitude > 0) or (now.month in [12,1,2] and latitude < 0)
+        temp_variation = random.uniform(0, 10) if is_summer else random.uniform(-10, 0)
         
         weather_data = WeatherData(
             station_name=random.choice(stations),
-            temperature=temperature,
+            temperature=round(base_temp + temp_variation, 2),
             latitude=latitude,
             longitude=round(random.uniform(-180, 180), 6),
-            timestamp=datetime.utcnow() - timedelta(days=random.randint(0, 365))
+            timestamp=now - timedelta(days=random.randint(0, 365))
         )
         db.add(weather_data)
     
@@ -63,7 +64,6 @@ def generate_random_weather_data(db: Session, count: int = 1000):
 
 @app.post("/api/generate-test-data")
 async def generate_test_data(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Эндпоинт для генерации тестовых данных"""
     background_tasks.add_task(generate_random_weather_data, db)
     return {"message": "Генерация тестовых данных начата"}
 
@@ -79,18 +79,14 @@ def create_weather(data: WeatherIn, db: Session = Depends(get_db)):
 def read_weather(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     if limit > 100:
         raise HTTPException(status_code=400, detail="Max limit is 100")
-    records = db.query(WeatherData).offset(skip).limit(limit).all()
-    return records
+    return db.query(WeatherData).offset(skip).limit(limit).all()
 
 @app.get("/api/weather/heatmap")
 def get_heatmap_data(db: Session = Depends(get_db)):
-    """Новый эндпоинт для получения данных тепловой карты"""
-    records = db.query(WeatherData).all()
     return [
         {
-            "latitude": record.latitude,
-            "longitude": record.longitude,
-            "temperature": record.temperature
-        }
-        for record in records
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "temperature": r.temperature
+        } for r in db.query(WeatherData).all()
     ]

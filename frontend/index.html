@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weather Station</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <style>
@@ -93,6 +94,7 @@
       height: 500px;
       width: 100%;
       border-radius: 8px;
+      margin-top: 10px;
     }
     .legend {
       padding: 10px;
@@ -101,6 +103,10 @@
       box-shadow: 0 0 15px rgba(0,0,0,0.2);
       line-height: 1.5;
       color: #555;
+    }
+    .legend h4 {
+      margin: 0 0 10px;
+      font-size: 16px;
     }
     .legend i {
       width: 18px;
@@ -117,16 +123,16 @@
   <div class="container">
     <div class="form-container">
       <form id="weather-form">
-        <input type="text" id="station_name" placeholder="Station Name" required><br>
-        <input type="number" id="temperature" placeholder="Temperature (°C)" step="0.1" required><br>
-        <input type="number" id="latitude" placeholder="Latitude" step="0.000001" required><br>
-        <input type="number" id="longitude" placeholder="Longitude" step="0.000001" required><br>
+        <input type="text" id="station_name" placeholder="Station Name" required>
+        <input type="number" id="temperature" placeholder="Temperature (°C)" step="0.1" required>
+        <input type="number" id="latitude" placeholder="Latitude" step="0.000001" required>
+        <input type="number" id="longitude" placeholder="Longitude" step="0.000001" required>
         <button type="submit">Submit</button>
       </form>
     </div>
 
     <div class="records-container">
-      <h2>Records</h2>
+      <h2>Weather Records</h2>
       <div id="records"></div>
       
       <div class="controls">
