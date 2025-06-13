@@ -4,10 +4,12 @@ from database import SessionLocal, engine, Base
 from models import WeatherData
 from pydantic import BaseModel
 from typing import List
+from datetime import datetime
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+# Добавляем параметр redirect_slashes=False
+app = FastAPI(redirect_slashes=False)
 
 def get_db():
     db = SessionLocal()
@@ -24,9 +26,10 @@ class WeatherIn(BaseModel):
 
 class WeatherOut(WeatherIn):
     id: int
-    timestamp: str
+    timestamp: datetime
 
-@app.post("/weather/", response_model=WeatherOut)
+# Оставляем роуты без изменений
+@app.post("/api/weather", response_model=WeatherOut)
 def create_weather(data: WeatherIn, db: Session = Depends(get_db)):
     db_data = WeatherData(**data.dict())
     db.add(db_data)
@@ -34,7 +37,7 @@ def create_weather(data: WeatherIn, db: Session = Depends(get_db)):
     db.refresh(db_data)
     return db_data
 
-@app.get("/weather/", response_model=List[WeatherOut])
+@app.get("/api/weather", response_model=List[WeatherOut])
 def read_weather(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     if limit > 100:
         raise HTTPException(status_code=400, detail="Max limit is 100")
